@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: df-m-py04-word-count-jobs-2290395f2ef14be2
+  namespace: deployflow-test
+  labels: &id001
+    app.kubernetes.io/name: df-m-py04-word-count-jobs-2290395f2ef14be2
+    app.kubernetes.io/managed-by: deployflow
+    app.kubernetes.io/instance: 2290395f-2ef1-4be2-a2cd-1748f8a73f44
+spec:
+  type: ClusterIP
+  selector: *id001
+  ports:
+  - name: http
+    port: 8204
+    targetPort: http
