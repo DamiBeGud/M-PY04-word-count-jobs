@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: df-m-py04-word-count-jobs-2290395f2ef14be2
+  namespace: deployflow-test
+  labels: &id001
+    app.kubernetes.io/name: df-m-py04-word-count-jobs-2290395f2ef14be2
+    app.kubernetes.io/managed-by: deployflow
+    app.kubernetes.io/instance: 2290395f-2ef1-4be2-a2cd-1748f8a73f44
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+      annotations:
+        deployflow.io/config-sha256: 39d96a422553c73a6319ef619f2ce530a9ff1d02726cefeff3873836741bf3ad
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 10001
+      containers:
+      - name: df-m-py04-word-count-jobs-2290395f2ef14be2
+        image: ghcr.io/damibegud/m-py04-word-count-jobs:7753260015ef7464dcf73516974188f3150b2ba9
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8204
+          name: http
+        envFrom:
+        - configMapRef:
+            name: df-m-py04-word-count-jobs-2290395f2ef14be2-config
+        env: []
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+      - name: queue-worker
+        image: ghcr.io/damibegud/m-py04-word-count-jobs:7753260015ef7464dcf73516974188f3150b2ba9
+        imagePullPolicy: IfNotPresent
+        command:
+        - celery
+        - -A
+        - word_count_jobs.worker:celery
+        - worker
+        - --loglevel=warning
+        - --concurrency=1
+        envFrom:
+        - configMapRef:
+            name: df-m-py04-word-count-jobs-2290395f2ef14be2-config
+        volumeMounts:
+        - name: runtime-tmp
+          mountPath: /tmp
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: runtime-tmp
+        emptyDir:
+          sizeLimit: 64Mi
+      initContainers:
+      - name: redis
+        image: docker.io/library/redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        imagePullPolicy: IfNotPresent
+        restartPolicy: Always
+        args:
+        - redis-server
+        - --bind
+        - 127.0.0.1
+        - --port
+        - '6379'
+        - --protected-mode
+        - 'yes'
+        - --save
+        - ''
+        - --appendonly
+        - 'no'
+        - --maxmemory
+        - 128mb
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+          runAsGroup: 999
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        startupProbe:
+          exec:
+            command:
+            - redis-cli
+            - -h
+            - 127.0.0.1
+            - -p
+            - '6379'
+            - PING
+          periodSeconds: 2
+          failureThreshold: 30
+  strategy:
+    type: Recreate
