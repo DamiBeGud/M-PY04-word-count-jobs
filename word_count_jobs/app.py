@@ -1,15 +1,22 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, ConfigDict, StrictInt
 
-import os,hmac,hashlib
+import hmac
+import os
 from uuid import UUID
 from fastapi import Header,Depends
 from .worker import celery,process
 class Job(BaseModel):
     reference:str=Field(min_length=1,max_length=64,pattern=r'^[A-Za-z0-9-]+$')
     text:str=Field(min_length=1,max_length=10000)
-def authenticate(authorization:str|None=Header(default=None)):
-    return None
+def authenticate(authorization: str | None = Header(default=None)):
+    expected = os.environ.get("API_TOKEN")
+    if not expected:
+        raise HTTPException(503, "token_unconfigured")
+
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not hmac.compare_digest(token.encode(), expected.encode()):
+        raise HTTPException(401, "unauthorized")
 
 
 def create_app():
