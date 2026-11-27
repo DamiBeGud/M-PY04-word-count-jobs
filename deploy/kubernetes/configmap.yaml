@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ba-pilot-py04-probe-context-20261127-config
+  namespace: deployflow-test
+  labels:
+    app.kubernetes.io/name: ba-pilot-py04-probe-context-20261127
+    app.kubernetes.io/managed-by: deployflow
+    app.kubernetes.io/instance: b7a4186f-deaa-44d8-a3cb-6a0844aab8e4
+data:
+  PORT: '8204'
+  HOST: 0.0.0.0
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUNBUFFERED: '1'
+  QUEUE_NAMESPACE: q-b7a4186fdeaa44d8a3cb6a0844aab8e4
