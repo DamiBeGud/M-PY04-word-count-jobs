@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ba-pilot-py04-probe-context-20261127
+  namespace: deployflow-test
+  labels: &id001
+    app.kubernetes.io/name: ba-pilot-py04-probe-context-20261127
+    app.kubernetes.io/managed-by: deployflow
+    app.kubernetes.io/instance: b7a4186f-deaa-44d8-a3cb-6a0844aab8e4
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *id001
+  template:
+    metadata:
+      labels: *id001
+      annotations:
+        deployflow.io/config-sha256: 568d3bf083ed8d92aa29c7f9608b1e1727337e270518f5637d8a4786e871c892
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 10001
+      containers:
+      - name: ba-pilot-py04-probe-context-20261127
+        image: ghcr.io/damibegud/m-py04-word-count-jobs:155b692c0933856364051db50c5c11c04583db85
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8204
+          name: http
+        envFrom:
+        - configMapRef:
+            name: ba-pilot-py04-probe-context-20261127-config
+        env:
+        - name: CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: ba-py04-shared-redis-fixture-20261125-client
+              key: CELERY_BROKER_URL
+        - name: CELERY_RESULT_BACKEND
+          valueFrom:
+            secretKeyRef:
+              name: ba-py04-shared-redis-fixture-20261125-client
+              key: CELERY_RESULT_BACKEND
+        - name: API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ba-pilot-py04-probe-context-20261127-api-token
+              key: API_TOKEN
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+      - name: queue-worker
+        image: ghcr.io/damibegud/m-py04-word-count-jobs:155b692c0933856364051db50c5c11c04583db85
+        imagePullPolicy: IfNotPresent
+        command:
+        - celery
+        - -A
+        - word_count_jobs.worker:celery
+        - worker
+        - --loglevel=warning
+        - --concurrency=1
+        envFrom:
+        - configMapRef:
+            name: ba-pilot-py04-probe-context-20261127-config
+        volumeMounts:
+        - name: runtime-tmp
+          mountPath: /tmp
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          runAsGroup: 10001
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        env:
+        - name: CELERY_BROKER_URL
+          valueFrom:
+            secretKeyRef:
+              name: ba-py04-shared-redis-fixture-20261125-client
+              key: CELERY_BROKER_URL
+        - name: CELERY_RESULT_BACKEND
+          valueFrom:
+            secretKeyRef:
+              name: ba-py04-shared-redis-fixture-20261125-client
+              key: CELERY_RESULT_BACKEND
+      volumes:
+      - name: runtime-tmp
+        emptyDir:
+          sizeLimit: 64Mi
+  strategy:
+    type: Recreate
